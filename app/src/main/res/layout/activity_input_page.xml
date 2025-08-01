@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".InputPage">
+
+    <EditText
+        android:id="@+id/InputBox"
+        android:layout_width="0dp"
+        android:layout_height="80dp"
+        android:layout_weight="10"
+        android:layout_marginLeft="20dp"
+        android:layout_marginTop="50dp"
+        android:inputType="textUri"
+
+        android:hint="Type your webaddress"
+        android:imeOptions="actionGo"
+        android:maxLines="2"
+
+
+        />
+
+    <ImageButton
+        android:id="@+id/InputBoxBack"
+        android:layout_width="0dp"
+        android:layout_height="80dp"
+        android:layout_marginTop="50dp"
+        android:layout_toRightOf="@id/InputBox"
+        android:layout_weight="2"
+        android:background="@drawable/x"
+        android:scaleType="center"
+        />
+
+</LinearLayout>

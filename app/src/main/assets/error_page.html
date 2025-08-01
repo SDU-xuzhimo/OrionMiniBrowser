@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网络连接错误</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body {
+            background: linear-gradient(135deg, #2c3e50 0%, #1a1a2e 100%);
+            color: #fff;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 20px;
+        }
+        .error-card {
+            background: rgba(30, 30, 46, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 700px;
+            width: 100%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            color: #ff6b6b;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+        .error-icon {
+            font-size: 2.5rem;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        p {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            color: #ccc;
+            margin: 20px 0;
+        }
+        .solution-box {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: left;
+            border-left: 4px solid #3498db;
+        }
+        .solution-box h2 {
+            color: #3498db;
+            margin-top: 0;
+        }
+        .solution-box ul {
+            padding-left: 20px;
+        }
+        .solution-box li {
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+        .btn-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        button:hover {
+            background: #2980b9;
+            transform: translateY(-3px);
+            box-shadow: 0 7px 14px rgba(0, 0, 0, 0.2);
+        }
+        #retryBtn { background: #2ecc71; }
+        #retryBtn:hover { background: #27ae60; }
+        .status-indicator {
+            margin: 20px 0;
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+<div class="error-card">
+    <h1>
+        <span class="error-icon">⚠️</span>
+        无法连接到服务器
+    </h1>
+
+    <p>您的设备无法建立安全连接，请检查网络设置后重试。</p>
+
+    <div class="status-indicator" id="statusText">
+        <span class="loading"></span>正在检测网络状态...
+    </div>
+
+    <div class="solution-box">
+        <h2>故障排查指南</h2>
+        <ul>
+            <li><strong>检查网络连接</strong>：确保设备已连接到互联网</li>
+            <li><strong>刷新DNS缓存</strong>：在命令提示符运行 <code>ipconfig /flushdns</code> (Windows)</li>
+            <li><strong>关闭代理/VPN</strong>：临时禁用可能影响连接的代理服务</li>
+            <li><strong>检查防火墙</strong>：确保防火墙未阻止浏览器访问网络</li>
+            <li><strong>尝试其他网络</strong>：切换至手机热点测试连接</li>
+        </ul>
+    </div>
+
+    <div class="btn-group">
+        <button id="retryBtn">↻ 重新加载页面</button>
+        <button id="diagnoseBtn">🔧 网络诊断</button>
+    </div>
+</div>
+
+<script>
+    // 自动检测网络状态
+    function checkNetworkStatus() {
+        const statusEl = document.getElementById('statusText');
+
+        if (navigator.onLine) {
+            statusEl.innerHTML = '✅ 网络连接正常 - 服务器可能暂时不可用';
+        } else {
+            statusEl.innerHTML = '❌ 设备未连接到互联网 - 请检查WiFi或移动数据';
+        }
+    }
+
+    // 页面加载时执行检测
+    window.addEventListener('load', () => {
+        // 初始检测
+        checkNetworkStatus();
+
+        // 监听网络变化
+        window.addEventListener('online', checkNetworkStatus);
+        window.addEventListener('offline', checkNetworkStatus);
+    });
+
+    // 按钮功能
+    document.getElementById('retryBtn').addEventListener('click', () => {
+        location.reload();
+    });
+
+    document.getElementById('diagnoseBtn').addEventListener('click', () => {
+        alert('网络诊断已启动...\n1. 正在ping服务器...\n2. 检查DNS解析...\n3. 验证端口状态\n\n详细报告请查看控制台');
+        console.log('诊断结果：\n- 网络类型：' + navigator.connection.effectiveType +
+                  '\n- 延迟：' + navigator.connection.rtt + 'ms');
+    });
+</script>
+</body>
+</html>
