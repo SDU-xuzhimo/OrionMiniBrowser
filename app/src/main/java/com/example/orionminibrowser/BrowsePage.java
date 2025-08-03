@@ -10,12 +10,14 @@ import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.net.http.SslError;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
 import android.view.View;
+import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -89,11 +91,19 @@ public class BrowsePage extends AppCompatActivity {
 
 
 
-    public void webSetting(){
+    public void webSetting() {
 
-        WebSettings webSettings = binding.webView.getSettings();
-        webSettings.setJavaScriptEnabled(true);
-        webSettings.setDomStorageEnabled(true);
+        WebSettings mWebSettings = binding.webView.getSettings();
+        mWebSettings.setJavaScriptEnabled(true);
+        mWebSettings.setDomStorageEnabled(true);
+        mWebSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        mWebSettings.setAllowFileAccess(true);
+        mWebSettings.setAllowContentAccess(true);
+        mWebSettings.setAllowFileAccessFromFileURLs(true);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            mWebSettings.setAllowUniversalAccessFromFileURLs(true);
+        }
     }
 
 
@@ -130,7 +140,7 @@ public class BrowsePage extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 if(v.getId()==R.id.share){
-                    Toast.makeText(BrowsePage.this,"share "+viewModel.getUrl(),Toast.LENGTH_SHORT).show();
+                    Toast.makeText(BrowsePage.this,viewModel.getUrl().getValue(),Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -138,7 +148,7 @@ public class BrowsePage extends AppCompatActivity {
         binding.back.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(v.getId()!=R.id.back)
+                if(v.getId()==R.id.back)
                     onBackPressed();
             }
         });
@@ -264,9 +274,14 @@ class CustomWebViewClient extends WebViewClient{
                 }
             }
         }
+        if(error.getErrorCode()==ERROR_CONNECT&&request.isForMainFrame())
+           viewModel.handleError();
 
-            viewModel.handleError();
+    }
 
+    @Override
+    public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+        handler.proceed();
     }
 }
 
