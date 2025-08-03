@@ -1,16 +1,20 @@
 package com.example.orionminibrowser;
 
+import static android.content.ContentValues.TAG;
 import static android.view.View.GONE;
 import static android.view.View.INVISIBLE;
 import static android.view.View.VISIBLE;
+import static android.view.View.inflate;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.View;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
@@ -29,6 +33,14 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.databinding.DataBindingUtil;
+import androidx.databinding.ViewDataBinding;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.ViewModel;
+import androidx.lifecycle.ViewModelProvider;
+
+import com.example.orionminibrowser.databinding.ActivityBrowsePageBinding;
 
 import java.net.URI;
 import java.net.URL;
@@ -36,201 +48,286 @@ import java.util.Stack;
 
 public class BrowsePage extends AppCompatActivity {
 
-    //Stack<String>  historyStack=new Stack<>();
-    private String startUri;
-    private WebView mWebView;
+    private ActivityBrowsePageBinding binding;
+    private BrowseViewModel viewModel;
 
-    private WebSettings mWebSettings;
+    private CustomWebChromeClient customWebChromeClient;
 
-    private TextView webTitle;
-    private ImageButton Back;
-    private ImageButton Share;
+    private CustomWebViewClient customWebViewClient;
 
 
-
-    private ProgressBar progressBar;
-    private boolean isPageLoaded;
-
-     private boolean isSuccessLoaded;
-
-    class mWebViewClient extends WebViewClient{
-
-        @Override
-        public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-            if (request.getUrl().toString().contains("file:///android_asset/error_page.html")) {
-                return true; // 禁止加载
-            }
-            return false;
-        }
-
-        @Override
-        public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
-            //view.stopLoading();
-            if (!failingUrl.startsWith("file:///android_asset/error_page.html")) {
-                view.loadUrl("file:///android_asset/error_page.html");
-            }
-            isSuccessLoaded=false;
-        }
-
-        @Override
-        public void onPageStarted(WebView view, String url, Bitmap favicon) {
-            super.onPageStarted(view,url,favicon);
-            isPageLoaded = false;
-            progressBar.setProgress(0);
-            isSuccessLoaded=true;
-            startUri = url;
-
-        }
-
-        @Override
-        public void onPageFinished(WebView view, String url) {
-            super.onPageFinished(view, url);
-            //progressBar.setVisibility(INVISIBLE);
-
-//            if(!startUri.equals(url)){
-//                mWebView.clearHistory();
-//                historyStack.pop();
-//            }
-
-//            if (historyStack.isEmpty() || !historyStack.peek().equals(url)) {
-//                historyStack.push(url);
-//            }
-
-
-            Back.setVisibility(VISIBLE);
-            if(isSuccessLoaded)
-                Share.setVisibility(VISIBLE);
-            else
-                Share.setVisibility(GONE);
-            webTitle.setVisibility(VISIBLE);
-
-            Back.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if(v.getId()==R.id.back){
-                        onBackPressed();
-                    }
-                }
-            });
-
-            Share.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if(v.getId()==R.id.share)
-                    {
-                        Toast.makeText(BrowsePage.this,"share "+mWebView.getUrl(),Toast.LENGTH_SHORT).show();
-                    }
-                }
-            });
-
-
-        }
-    }
-
-
-    @SuppressLint("GestureBackNavigation")
-    @Override
-    public void onBackPressed() {
-        if (mWebView.getUrl() != null && mWebView.getUrl().contains("file:///android_asset/error_page.html")) {
-            if (mWebView.canGoBack()) {
-                // 回退到错误页之前的页面（原始请求页）
-                mWebView.goBack();
-                // 若原始页仍失败，需额外处理（见方案 3）
-            } else {
-                super.onBackPressed(); // 无历史记录则退出 Activity
-            }
-        } else {
-            super.onBackPressed();
-        }
-    }
-
-    class mWebChromeClient extends WebChromeClient{
-
-        @Override
-        public void onProgressChanged(WebView view, int newProgress) {
-
-                super.onProgressChanged(view, newProgress);
-
-                // 页面开始加载时显示进度条
-                if (newProgress < 100 && progressBar.getVisibility() != VISIBLE) {
-                    progressBar.setVisibility(VISIBLE);
-                    isPageLoaded = false;
-                }
-
-                // 更新进度值
-                progressBar.setProgress(newProgress);
-
-                // 加载完成后隐藏进度条（有延迟让用户看到100%）
-                if (newProgress == 100) {
-                    isPageLoaded = true;
-                    // 延迟隐藏进度条（500ms后）
-                    new Handler().postDelayed(() -> {
-                        if (isPageLoaded) {
-                            progressBar.setVisibility(View.GONE);
-                        }
-                    }, 500);
-                }
-
-        }
-
-        @Override
-        public void onReceivedTitle(WebView view, String title) {
-            super.onReceivedTitle(view, title);
-
-            webTitle.setText(title);
-        }
-    }
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_browse_page);
+
+        binding = DataBindingUtil.setContentView(BrowsePage.this,R.layout.activity_browse_page);
+        viewModel = new ViewModelProvider(this).get(BrowseViewModel.class);
+
+
+
+        binding.setViewModel(viewModel);
+        binding.setLifecycleOwner(this);
+
+
+        binding.webView.setWebViewClient(new CustomWebViewClient(viewModel));
+        binding.webView.setWebChromeClient(new CustomWebChromeClient(viewModel));
+
+
+        webSetting();
 
 
         Intent intent = getIntent();
         String webSite = intent.getStringExtra("URL");
 
+        binding.webView.loadUrl(webSite);
 
-        mWebView = (WebView) findViewById(R.id.web_view);
-        webTitle = (TextView) findViewById(R.id.web_title);
-        Back = (ImageButton) findViewById(R.id.back);
-        Share = (ImageButton) findViewById(R.id.share);
-        progressBar = (ProgressBar)findViewById(R.id.progress_bar);
-
-        mWebSettings = mWebView.getSettings();
-        mWebView.setWebViewClient(new mWebViewClient());
-        mWebView.setWebChromeClient(new mWebChromeClient());
-
-
-        websetting();
-
-
-
-        mWebView.loadUrl(webSite);
+        setupObservers();
     }
 
-    private void websetting(){
-        mWebSettings.setJavaScriptEnabled(true);
-        mWebSettings.setDomStorageEnabled(true);
-        mWebSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
 
-        mWebSettings.setAllowFileAccess(true);
-        mWebSettings.setAllowContentAccess(true);
-        mWebSettings.setAllowFileAccessFromFileURLs(true);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-            mWebSettings.setAllowUniversalAccessFromFileURLs(true);
+
+    public void webSetting(){
+
+        WebSettings webSettings = binding.webView.getSettings();
+        webSettings.setJavaScriptEnabled(true);
+        webSettings.setDomStorageEnabled(true);
+    }
+
+
+    public void setupObservers(){
+
+        viewModel.getIsLoading().observe(this,isLoad->{
+            if(isLoad)
+                binding.progressBar.setVisibility(VISIBLE);
+            else
+                binding.progressBar.setVisibility(GONE);
+        });
+
+        viewModel.getPageTitle().observe(this,title->{
+            if(title!=null)
+                binding.webTitle.setText(title);
+        });
+
+        viewModel.getProgress().observe(this,progress->{
+
+            binding.progressBar.setProgress(progress);
+        });
+
+        viewModel.getHasError().observe(this,hasError->{
+
+            if(hasError){
+                binding.webView.stopLoading();
+                binding.webView.loadUrl("file:///android_asset/error_page.html");
+
+            }
+        });
+
+
+        binding.share.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(v.getId()==R.id.share){
+                    Toast.makeText(BrowsePage.this,"share "+viewModel.getUrl(),Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        binding.back.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(v.getId()!=R.id.back)
+                    onBackPressed();
+            }
+        });
+
+    }
+
+    @SuppressLint("GestureBackNavigation")
+    @Override
+    public void onBackPressed() {
+
+        if(binding.webView.canGoBack())
+            binding.webView.goBack();
+        else
+            super.onBackPressed();
+
+    }
+}
+
+
+//class ActivityBrowseBinding extends ViewDataBinding{
+//
+//    private ProgressBar progressBar;
+//    private WebView webView;
+//    private ImageButton backButton;
+//    private ImageButton shareButton;
+//    private TextView title;
+//
+//    public ImageButton getBackButton() {
+//        return backButton;
+//    }
+//
+//    public void setBackButton(ImageButton backButton) {
+//        this.backButton = backButton;
+//    }
+//
+//    public ProgressBar getProgressBar() {
+//        return progressBar;
+//    }
+//
+//    public void setProgressBar(ProgressBar progressBar) {
+//        this.progressBar = progressBar;
+//    }
+//
+//    public WebView getWebView() {
+//        return webView;
+//    }
+//
+//    public void setWebView(WebView webView) {
+//        this.webView = webView;
+//    }
+//
+//    public ImageButton getShareButton() {
+//        return shareButton;
+//    }
+//
+//    public void setShareButton(ImageButton shareButton) {
+//        this.shareButton = shareButton;
+//    }
+//
+//    public TextView getTitle() {
+//        return title;
+//    }
+//
+//    public void setTitle(TextView title) {
+//        this.title = title;
+//    }
+//}
+
+
+class CustomWebViewClient extends WebViewClient{
+
+    private BrowseViewModel viewModel;
+
+    @Override
+    public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+        return false;
+    }
+
+    public CustomWebViewClient(BrowseViewModel viewModel){
+        super();
+        this.viewModel=viewModel;
+    }
+
+    @Override
+    public void onPageStarted(WebView view, String url, Bitmap favicon) {
+        super.onPageStarted(view, url, favicon);
+
+        viewModel.handlePageStarted(url);
+    }
+
+    @Override
+    public void onPageFinished(WebView view, String url) {
+
+        if(viewModel.getHasError().equals(false)) {
+            super.onPageFinished(view, url);
+            viewModel.handlePageFinished();
         }
     }
 
     @Override
-    protected void onDestroy() {
-        if(mWebView!=null){
-            mWebView.stopLoading();
-            mWebView.setWebChromeClient(null);
-            mWebSettings=null;
+    public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
+        //super.onReceivedError(view, request, error);
+
+
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Log.e(TAG, "Error details: " +
+                    "Code=" + error.getErrorCode() +
+                    ", Desc=" + error.getDescription() +
+                    ", ForMainFrame=" + request.isForMainFrame());
         }
-        super.onDestroy();
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (error.getErrorCode() == WebViewClient.ERROR_UNKNOWN &&
+                    error.getDescription().toString().contains("ORB")) {
+
+                Log.w(TAG, "ORB blocked resource: " + request.getUrl());
+
+                // 对于非主框架错误，可以选择忽略
+                if (!request.isForMainFrame()) {
+                    Log.d(TAG, "Ignoring ORB error for subresource");
+                    return;
+                }
+            }
+        }
+
+            viewModel.handleError();
+
     }
+}
+
+class CustomWebChromeClient extends WebChromeClient{
+    private BrowseViewModel viewModel;
+
+    public CustomWebChromeClient(BrowseViewModel viewModel){
+        super();
+        this.viewModel=viewModel;
+    }
+
+    @Override
+    public void onReceivedTitle(WebView view, String title) {
+        super.onReceivedTitle(view, title);
+
+        viewModel.handleTitleReceived(title);
+    }
+
+    @Override
+    public void onProgressChanged(WebView view, int newProgress) {
+        super.onProgressChanged(view, newProgress);
+        viewModel.handleProgressChanged(newProgress);
+    }
+}
+
+
+class WebRepository  {
+
+    MutableLiveData<Integer> progress = new MutableLiveData<>();
+    MutableLiveData<String> pageTitle = new MutableLiveData<>();
+    MutableLiveData<String> currentUrl=new MutableLiveData<>();
+    MutableLiveData<Boolean> isLoading = new MutableLiveData<>();
+    MutableLiveData<Boolean> hasError=new MutableLiveData<>();
+
+
+    public WebRepository(){
+        progress.postValue(0);
+        hasError.postValue(false);
+        isLoading.postValue(false);
+
+    }
+    public void updateProgress(Integer newProgress){
+
+        progress.postValue(newProgress);
+        if(newProgress==100){
+            isLoading.postValue(true);
+        }
+    }
+
+    public void updateTitle(String title){
+        pageTitle.postValue(title);
+    }
+
+    public void updateUrl(String url){
+        currentUrl.postValue(url);
+    }
+
+    public void handleError(){
+        hasError.postValue(true);
+        isLoading.postValue(false);
+    }
+
+
 }
